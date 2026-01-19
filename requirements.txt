@@ -1,0 +1,19 @@
+fastapi==0.110.0
+uvicorn==0.29.0
+pydantic==2.6.1
+sqlmodel==0.0.14
+SQLAlchemy==2.0.25
+python-multipart==0.0.9
+requests==2.31.0
+numpy>=2.1.0; python_version>="3.13"
+numpy>=1.26.4,<2.0; python_version<"3.13"
+faiss-cpu>=1.12.0
+soundfile==0.12.1
+funasr==1.2.0
+PyYAML==6.0.1
+python-dotenv==1.0.1
+langchain
+langchain-community
+langchain-openai
+langchain-ollama
+langchain-huggingface
