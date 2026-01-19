@@ -86,7 +86,7 @@ class _Settings:
         self.FAISS_DIR = self._abs_from_root(os.path.join(self.DATA_DIR, faiss_subdir))
         self.FAISS_META_PATH = self._abs_from_root(os.path.join(self.DATA_DIR, faiss_meta_name))
 
-        self.OLLAMA_API = os.getenv("OLLAMA_API", models.get("ollama_api", self.OLLAMA_API))
+        self.OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", models.get("OLLAMA_BASE_URL", self.OLLAMA_BASE_URL))
         self.DEFAULT_LLM_MODEL = os.getenv("DEFAULT_LLM_MODEL", models.get("default_llm_model", self.DEFAULT_LLM_MODEL))
         self.EMBED_MODEL = os.getenv("EMBED_MODEL", rag.get("embed_model", self.EMBED_MODEL))
 
@@ -103,5 +103,22 @@ class _Settings:
         self.DASHSCOPE_API_KEY = os.getenv("DASHSCOPE_API_KEY", models.get("dashscope_api_key", self.DASHSCOPE_API_KEY))
         self.USE_LANGCHAIN = bool(str(os.getenv("USE_LANGCHAIN", models.get("use_langchain", self.USE_LANGCHAIN))).lower() in ["1", "true", "yes"])
 
+
+        # 美化输出 使用什么LLM、ASR、RAG等
+        print("=" * 50)
+        print("配置信息")
+
+        print(f"LLM_PROVIDER: {self.LLM_PROVIDER}")
+        print(f"LLM_BASE_URL: {self.LLM_BASE_URL}")
+        print(f"LLM_API_KEY: {self.LLM_API_KEY}")
+
+        print(f"OLLAMA_BASE_URL: {self.OLLAMA_BASE_URL}")
+        print(f"EMBED_MODEL: {self.EMBED_MODEL}")
+
+        print(f"ASR_PROVIDER: {self.ASR_PROVIDER}")
+        print(f"ASR_MODEL: {self.ASR_MODEL}")
+        print(f"WHISPER_MODEL: {self.WHISPER_MODEL}")
+        print(f"RAG_ENABLED: {self.RAG_ENABLED}")
+        print(f"USE_LANGCHAIN: {self.USE_LANGCHAIN}")
 
 SETTINGS = _Settings()

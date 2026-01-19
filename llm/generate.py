@@ -16,7 +16,7 @@ def _langchain_generate(model: str, prompt: str, temperature: float, provider: s
     if provider == "ollama":
         llm = ChatOllama(
             model=model,
-            base_url=SETTINGS.OLLAMA_API,
+            base_url=SETTINGS.OLLAMA_BASE_URL,
             temperature=temperature,
         )
     elif provider == "openai":
@@ -55,7 +55,7 @@ def _post_ollama_generate(model: str, prompt: str, temperature: float = 0.2) -> 
     调用本地 Ollama 生成文本。
     """
     resp = requests.post(
-        f"{SETTINGS.OLLAMA_API}/api/generate",
+        f"{SETTINGS.OLLAMA_BASE_URL.rstrip('/')}/api/generate",
         json={"model": model, "prompt": prompt, "options": {"temperature": temperature}},
         timeout=120,
     )

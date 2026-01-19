@@ -57,7 +57,7 @@ class RagIndex:
         embs = []
         for t in texts:
             r = requests.post(
-                f"{SETTINGS.OLLAMA_API}/api/embeddings",
+                f"{SETTINGS.OLLAMA_BASE_URL.rstrip('/')}/api/embeddings",   
                 json={"model": self.embed_model, "prompt": t},
                 timeout=120,
             )
@@ -116,12 +116,12 @@ class RagIndex:
         if provider == "ollama":
             embedder = OllamaEmbeddings(
                 model=self.embed_model,
-                base_url=SETTINGS.OLLAMA_API,
+                base_url=SETTINGS.OLLAMA_BASE_URL,
             )
         elif provider == "openai":
             embedder = OpenAIEmbeddings(
                 model=self.embed_model,
-                base_url=SETTINGS.LLM_BASE_URL,
+                base_url=SETTINGS.LLM_BASE_URL.rstrip('/'),
                 api_key=SETTINGS.LLM_API_KEY,
             )
         elif provider == "dashscope":
@@ -133,7 +133,7 @@ class RagIndex:
         else:
             embedder = OllamaEmbeddings(
                 model=self.embed_model,
-                base_url=SETTINGS.OLLAMA_API,
+                base_url=SETTINGS.OLLAMA_BASE_URL,
             )
         
         # LangChain embed_documents 返回 List[List[float]]
