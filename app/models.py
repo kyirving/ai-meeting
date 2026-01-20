@@ -59,8 +59,8 @@ class MeetingDetailResponse(SQLModel):
 
 class RagSearchResponse(SQLModel):
     """
-    RAG 检索返回：问题、答案与引用来源。
+    RAG 检索返回：查询消息、答案与引用来源。
     """
-    question: str
+    message: str
     answer: str
     citations: List[dict]

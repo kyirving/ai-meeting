@@ -1,12 +1,15 @@
 import json
 from typing import Optional
 import requests
+import logging
 
 from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage
 
 from conf.settings import SETTINGS
+
+logger = logging.getLogger("llm")
 
 
 def _langchain_generate(model: str, prompt: str, temperature: float, provider: str) -> str:
@@ -16,14 +19,14 @@ def _langchain_generate(model: str, prompt: str, temperature: float, provider: s
     if provider == "ollama":
         llm = ChatOllama(
             model=model,
-            base_url=SETTINGS.OLLAMA_BASE_URL,
+            base_url=SETTINGS.LLM_BASE_URL,
             temperature=temperature,
         )
     elif provider == "openai":
         llm = ChatOpenAI(
             model=model,
-            base_url=SETTINGS.OPENAI_BASE_URL,
-            api_key=SETTINGS.OPENAI_API_KEY,
+            base_url=SETTINGS.LLM_BASE_URL,
+            api_key=SETTINGS.LLM_API_KEY,
             temperature=temperature,
         )
     elif provider == "dashscope":
@@ -38,7 +41,7 @@ def _langchain_generate(model: str, prompt: str, temperature: float, provider: s
         # 默认回退到 Ollama
         llm = ChatOllama(
             model=model,
-            base_url=SETTINGS.OLLAMA_BASE_URL,
+            base_url=SETTINGS.LLM_BASE_URL,
             temperature=temperature,
         )
 
@@ -46,7 +49,9 @@ def _langchain_generate(model: str, prompt: str, temperature: float, provider: s
         SystemMessage(content="你是一名资深会议纪要助理，输出清晰的结构化中文纪要或答案。"),
         HumanMessage(content=prompt),
     ]
+    logger.info("LLM(langchain) provider=%s model=%s temp=%s prompt_chars=%s", provider, model, temperature, len(prompt or ""))
     resp = llm.invoke(messages)
+    logger.info("LLM(langchain) response_chars=%s", len(str(resp.content or "")))
     return str(resp.content).strip()
 
 
@@ -54,8 +59,9 @@ def _post_ollama_generate(model: str, prompt: str, temperature: float = 0.2) -> 
     """
     调用本地 Ollama 生成文本。
     """
+    logger.info("LLM(ollama) model=%s temp=%s prompt_chars=%s", model, temperature, len(prompt or ""))
     resp = requests.post(
-        f"{SETTINGS.OLLAMA_BASE_URL.rstrip('/')}/api/generate",
+        f"{SETTINGS.LLM_BASE_URL.rstrip('/')}/api/generate",    
         json={"model": model, "prompt": prompt, "options": {"temperature": temperature}},
         timeout=120,
     )
@@ -67,6 +73,7 @@ def _post_ollama_generate(model: str, prompt: str, temperature: float = 0.2) -> 
             text += obj.get("response", "")
         except Exception:
             continue
+    logger.info("LLM(ollama) response_chars=%s", len(text or ""))
     return text.strip()
 
 
@@ -77,6 +84,7 @@ def _post_openai_chat(model: str, prompt: str, temperature: float = 0.2) -> str:
     headers = {}
     if SETTINGS.LLM_API_KEY:
         headers["Authorization"] = f"Bearer {SETTINGS.LLM_API_KEY}"
+    logger.info("LLM(openai) base=%s model=%s temp=%s prompt_chars=%s", SETTINGS.LLM_BASE_URL, model, temperature, len(prompt or ""))
     resp = requests.post(
         f"{SETTINGS.LLM_BASE_URL.rstrip('/')}/v1/chat/completions",
         headers=headers,
@@ -92,6 +100,10 @@ def _post_openai_chat(model: str, prompt: str, temperature: float = 0.2) -> str:
     )
     resp.raise_for_status()
     data = resp.json()
+    try:
+        logger.info("LLM(openai) response_tokens=%s", data.get("usage", {}).get("total_tokens"))
+    except Exception:
+        pass
     return data["choices"][0]["message"]["content"].strip()
 
 def _post_dashscope_chat(model: str, prompt: str, temperature: float = 0.2) -> str:
@@ -119,6 +131,7 @@ def _post_dashscope_chat(model: str, prompt: str, temperature: float = 0.2) -> s
             "temperature": temperature
         }
     }
+    logger.info("LLM(dashscope) model=%s temp=%s prompt_chars=%s", model, temperature, len(prompt or ""))
     resp = requests.post(url, headers=headers, json=payload, timeout=120)
     resp.raise_for_status()
     data = resp.json()
@@ -128,9 +141,11 @@ def _post_dashscope_chat(model: str, prompt: str, temperature: float = 0.2) -> s
         out = data["output"]
         if isinstance(out, dict):
             if "text" in out:
+                logger.info("LLM(dashscope) response_text_chars=%s", len(str(out["text"] or "")))
                 return str(out["text"]).strip()
             if "choices" in out and out["choices"]:
                 msg = out["choices"][0].get("message", {})
+                logger.info("LLM(dashscope) response_msg_chars=%s", len(str(msg.get("content", "") or "")))
                 return str(msg.get("content", "")).strip()
     return json.dumps(data, ensure_ascii=False)
 

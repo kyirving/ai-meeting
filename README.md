@@ -32,15 +32,9 @@ requirements.txt
 ```
 
 ## 环境准备
-1. 安装 Python 3.10+
+1. 安装 Python 3.11+
 2. 安装依赖：
    ```bash
-   # 创建虚拟环境 
-   python3 -m venv .venv
-   source .venv/bin/activate
-   pip install -r requirements.txt
-
-
    # conda 安装
    conda create --name ai-meeting python=3.11
 
@@ -51,7 +45,7 @@ requirements.txt
    # 停用环境
    conda deactivate
   # 启动服务
-   uvicorn main:app --host 0.0.0.0 --port 8000
+   python -m uvicorn main:app --host 0.0.0.0 --port 8000
    ```
 3. 安装并启动 Ollama：
    - https://ollama.com
@@ -66,9 +60,24 @@ requirements.txt
 
 ## 启动
 ```bash
-uvicorn main:app --host 0.0.0.0 --port 8000
+ APP_ENV=dev python -m uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 
+## 在线 Whisper 配置（faster-whisper）
+- 在 .env.example 设置：
+  - ASR_PROVIDER=faster-whisper
+  - WHISPER_MODEL=medium
+  - HF_HUB_OFFLINE=0
+  - 可选代理/镜像：HTTP_PROXY、HTTPS_PROXY、HF_ENDPOINT=https://hf-mirror.com、HF_TOKEN
+- 启动时使用 APP_ENV=dev 以加载 .env.example
+- 首次会在线下载模型并缓存，后续离线也可用
+
+## 离线 Whisper 配置（本地模型路径）
+- 在 .env.example 设置：
+  - ASR_PROVIDER=faster-whisper
+  - WHISPER_MODEL=/绝对路径/到/faster-whisper-模型目录
+  - HF_HUB_OFFLINE=1
+- 不需要网络，直接加载本地模型目录
 ## 关于 LangChain 与通义千问
 - 本项目未使用 LangChain，目标是轻量与可控的离线链路；如需工作流编排、工具调用、复杂检索链，可按需引入。
 - LLM Provider 支持：
