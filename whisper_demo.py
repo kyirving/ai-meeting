@@ -7,6 +7,12 @@ from faster_whisper import WhisperModel
 # 忽略无关警告（可选）
 warnings.filterwarnings("ignore")
 
+# 1. 强制关闭 HF 离线模式
+os.environ["HF_HUB_OFFLINE"] = "0"
+os.environ["HF_HUB_DISABLE_OFFLINE_REQUIREMENT"] = "0"
+# 2. 配置清华镜像（优先级最高）
+os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
+
 class OnlineAudioTranscriber:
     """
     纯在线模式的 faster-whisper 语音识别器（自动从 Hugging Face 下载模型）。
