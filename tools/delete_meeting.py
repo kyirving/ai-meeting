@@ -6,6 +6,11 @@ import argparse
 import logging
 from typing import Optional, List, Dict, Any
 
+# 保障作为独立脚本运行时可定位项目根路径
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if PROJECT_ROOT not in sys.path:
+    sys.path.append(PROJECT_ROOT)
+
 from sqlmodel import Session, select
 
 from conf.settings import SETTINGS
@@ -31,11 +36,20 @@ def _safe_unlink(path: Optional[str]) -> bool:
         logger.warning("删除文件失败: %s error=%s", path, e)
     return False
 
+def _sanitize_filename(name: str) -> str:
+    """
+    规范化文件名，保留中英文、数字、下划线和连字符，空白转为下划线。
+    """
+    import re
+    s = (name or "").strip()
+    s = re.sub(r"\s+", "_", s)
+    s = re.sub(r"[^\w\-\u4e00-\u9fff]", "", s)
+    return s or str(meeting_id)
+
 def _delete_minutes_md(meeting_id: int, title: str) -> int:
     """
     删除该会议的 Markdown 纪要文件，按 <规范化标题>-<id>.md 匹配
     """
-    from main import _sanitize_filename  # 复用项目内规范化函数
     safe = _sanitize_filename(title)
     pattern = os.path.join(SETTINGS.MEETINGS_DIR, f"{safe}-{meeting_id}.md")
     cnt = 0
