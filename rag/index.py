@@ -4,7 +4,7 @@ from typing import List, Dict, Any
 
 import numpy as np
 import faiss
-import requests
+ 
 
 from langchain_ollama import OllamaEmbeddings
 from langchain_openai import OpenAIEmbeddings
@@ -71,80 +71,12 @@ class RagIndex:
             json.dump(self._metas, f, ensure_ascii=False, indent=2)
         logger.info("RAG persist index ntotal=%s metas=%s", getattr(self.index, "ntotal", 0) if self.index else 0, len(self._metas))
 
-    def _embed_ollama(self, texts: List[str]) -> np.ndarray:
-        """
-        使用 Ollama embedding 生成向量。
-        """
-        logger.info("Embed(ollama) model=%s count=%s", self.embed_model, len(texts))
-        embs = []
-        for t in texts:
-            r = requests.post(
-                f"{SETTINGS.OLLAMA_BASE_URL.rstrip('/')}/api/embeddings",
-                json={"model": self.embed_model, "prompt": t},
-                timeout=120,
-            )
-            r.raise_for_status()
-            embs.append(np.array(r.json()["embedding"], dtype="float32"))
-        return np.vstack(embs)
-
-    def _embed_openai(self, texts: List[str]) -> np.ndarray:
-        """
-        使用 OpenAI 兼容接口生成向量。
-        """
-        headers = {}
-        if SETTINGS.LLM_API_KEY:
-            headers["Authorization"] = f"Bearer {SETTINGS.LLM_API_KEY}"
-        logger.info("Embed(openai) base=%s model=%s count=%s", SETTINGS.LLM_BASE_URL, self.embed_model, len(texts))
-        embs = []
-        for t in texts:
-            r = requests.post(
-                f"{SETTINGS.LLM_BASE_URL.rstrip('/')}/v1/embeddings",
-                headers=headers,
-                json={"model": self.embed_model, "input": t},
-                timeout=120,
-            )
-            r.raise_for_status()
-            embs.append(np.array(r.json()["data"][0]["embedding"], dtype="float32"))
-        return np.vstack(embs)
-
-    def _embed_dashscope(self, texts: List[str]) -> np.ndarray:
-        """
-        使用通义千问 DashScope 生成向量。
-        """
-        api_key = SETTINGS.DASHSCOPE_API_KEY or ""
-        if not api_key:
-            raise RuntimeError("未配置 DASHSCOPE_API_KEY")
-        headers = {
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-        }
-        url = "https://dashscope.aliyuncs.com/api/v1/services/embeddings/text-embedding"
-        model = self.embed_model
-        if model in {"nomic-embed-text", "mxbai-embed-large", "text-embedding-3-large"}:
-            model = "text-embedding-v1"
-        logger.info("Embed(dashscope) model=%s count=%s", model, len(texts))
-        payload = {"model": model, "input": texts}
-        r = requests.post(url, headers=headers, json=payload, timeout=120)
-        r.raise_for_status()
-        data = r.json()
-        outputs = data.get("output", {}).get("embeddings", [])
-        if not outputs and "data" in data:
-            outputs = data.get("data", [])
-        vecs = []
-        for item in outputs:
-            vec = item.get("embedding")
-            if vec is not None:
-                vecs.append(np.array(vec, dtype="float32"))
-        if not vecs:
-            raise RuntimeError("DashScope embeddings 返回为空")
-        return np.vstack(vecs)
-    def _embed_langchain(self, texts: List[str]) -> np.ndarray:
-        
-        logger.info("Embed(langchain) model=%s count=%s", self.embed_model, len(texts))
+    def _embed_langchain(self, texts: List[str], provider_override: str = None) -> np.ndarray:
         """
         使用 LangChain 生成向量。
         """
-        provider = (getattr(SETTINGS, "EMBED_PROVIDER", "ollama") or "ollama").lower()
+        logger.info("Embed(langchain) model=%s count=%s", self.embed_model, len(texts))
+        provider = (provider_override or getattr(SETTINGS, "EMBED_PROVIDER", "ollama") or "ollama").lower()
         if provider == "tongyi":
             provider = "dashscope"
         model = self.embed_model
@@ -164,10 +96,14 @@ class RagIndex:
                 api_key=SETTINGS.LLM_API_KEY,
             )
         elif provider == "dashscope":
-            embedder = OpenAIEmbeddings(
+            from langchain_community.embeddings import DashScopeEmbeddings
+            try:
+                if SETTINGS.DASHSCOPE_API_KEY:
+                    os.environ["DASHSCOPE_API_KEY"] = SETTINGS.DASHSCOPE_API_KEY
+            except Exception:
+                pass
+            embedder = DashScopeEmbeddings(
                 model=model,
-                base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
-                api_key=SETTINGS.DASHSCOPE_API_KEY,
             )
         else:
             embedder = OllamaEmbeddings(
@@ -183,22 +119,19 @@ class RagIndex:
         """
         根据配置选择 embedding 提供方。
         """
-        if getattr(SETTINGS, "USE_LANGCHAIN", False):
-            p = (getattr(SETTINGS, "EMBED_PROVIDER", "ollama") or "ollama").lower()
-            if p in ("dashscope", "tongyi"):
-                return self._embed_dashscope(texts)
-            return self._embed_langchain(texts)
-
         provider = (getattr(SETTINGS, "EMBED_PROVIDER", "ollama") or "ollama").lower()
         if provider == "tongyi":
             provider = "dashscope"
-        if provider == "tongyi":
-            provider = "dashscope"
-        if provider == "openai":
-            return self._embed_openai(texts)
-        if provider == "dashscope":
-            return self._embed_dashscope(texts)
-        return self._embed_ollama(texts)
+        try:
+            return self._embed_langchain(texts, provider_override=provider)
+        except Exception as e:
+            logger.error("Embed(langchain) provider=%s 失败，触发回退 error=%s", provider, e)
+            # 纯 LangChain 回退：openai → ollama
+            try:
+                return self._embed_langchain(texts, provider_override="openai")
+            except Exception as e2:
+                logger.error("Embed(langchain) 回退到 openai 失败 error=%s，继续回退到 ollama", e2)
+                return self._embed_langchain(texts, provider_override="ollama")
 
     def add_texts(self, texts: List[str], metadatas: List[Dict[str, Any]]) -> None:
         """

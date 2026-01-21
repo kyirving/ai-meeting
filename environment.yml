@@ -41,6 +41,7 @@ dependencies:
       - chromadb==0.5.23
       - librosa==0.11.0
       - soxr==1.0.0
+      - dashscope==1.15.3
       # faster-whisper 核心依赖（无冲突）
       # - faster_whisper==1.0.0 
       - ctranslate2==4.6.3

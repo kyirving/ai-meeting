@@ -17,12 +17,13 @@ class _Settings:
     DB_PATH: str = os.path.join(DATA_DIR, "meetings.db")
     FAISS_DIR: str = os.path.join(DATA_DIR, "faiss")
     FAISS_META_PATH: str = os.path.join(DATA_DIR, "faiss_meta.json")
+    MEETINGS_DIR: str = os.path.join(DATA_DIR, "mettings")
 
     DEFAULT_LLM_MODEL: str = "qwen2.5:7b"
     EMBED_MODEL: str = "nomic-embed-text"
     ASR_PROVIDER: str = "faster-whisper"
     ASR_MODEL: str = "paraformer-zh"
-    WHISPER_MODEL: str = "medium"
+    WHISPER_MODEL: str = "tiny"
     RAG_ENABLED: bool = True
     LLM_PROVIDER: str = "tongyi"
     LLM_BASE_URL: str = "http://127.0.0.1:11434"
@@ -57,6 +58,7 @@ class _Settings:
         os.makedirs(self.AUDIO_DIR, exist_ok=True)
         os.makedirs(self.FAISS_DIR, exist_ok=True)
         os.makedirs(self.CHROMA_DIR, exist_ok=True)
+        os.makedirs(self.MEETINGS_DIR, exist_ok=True)
 
     def _abs_from_root(self, p: str) -> str:
         """
@@ -94,12 +96,14 @@ class _Settings:
         db_name = paths.get("db_name", "meetings.db")
         faiss_subdir = paths.get("faiss_subdir", "faiss")
         faiss_meta_name = paths.get("faiss_meta_name", "faiss_meta.json")
+        meetings_subdir = paths.get("meetings_subdir", "mettings")
 
         self.DATA_DIR = self._abs_from_root(data_dir)
         self.AUDIO_DIR = self._abs_from_root(os.path.join(self.DATA_DIR, audio_subdir))
         self.DB_PATH = self._abs_from_root(os.path.join(self.DATA_DIR, db_name))
         self.FAISS_DIR = self._abs_from_root(os.path.join(self.DATA_DIR, faiss_subdir))
         self.FAISS_META_PATH = self._abs_from_root(os.path.join(self.DATA_DIR, faiss_meta_name))
+        self.MEETINGS_DIR = self._abs_from_root(os.path.join(self.DATA_DIR, meetings_subdir))
 
         self.OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", models.get("OLLAMA_BASE_URL", self.OLLAMA_BASE_URL))
         self.DEFAULT_LLM_MODEL = os.getenv("DEFAULT_LLM_MODEL", models.get("default_llm_model", self.DEFAULT_LLM_MODEL))
@@ -119,6 +123,7 @@ class _Settings:
         self.USE_LANGCHAIN = bool(str(os.getenv("USE_LANGCHAIN", models.get("use_langchain", self.USE_LANGCHAIN))).lower() in ["1", "true", "yes"])
         self.RAG_PROVIDER = os.getenv("RAG_PROVIDER", rag.get("provider", self.RAG_PROVIDER)).lower()
         self.CHROMA_DIR = os.getenv("CHROMA_DIR", rag.get("chroma_dir", self.CHROMA_DIR))
+        self.MEETINGS_DIR = os.getenv("MEETINGS_DIR", paths.get("meetings_dir", self.MEETINGS_DIR))
 
         # 美化输出 使用什么LLM、ASR、RAG等
         print("=" * 50)
@@ -137,5 +142,6 @@ class _Settings:
         print(f"RAG_ENABLED: {self.RAG_ENABLED}")
         print(f"USE_LANGCHAIN: {self.USE_LANGCHAIN}")
         print(f"RAG_PROVIDER: {self.RAG_PROVIDER} CHROMA_DIR: {self.CHROMA_DIR}")
+        print(f"MEETINGS_DIR: {self.MEETINGS_DIR}")
 
 SETTINGS = _Settings()
